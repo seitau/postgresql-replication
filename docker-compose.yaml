@@ -1,0 +1,46 @@
+version: '3.8'
+services:
+  primary:
+    image: postgres:13.5
+    restart: always
+    command: -c 'config_file=/etc/postgresql/postgresql.conf' -c 'hba_file=/etc/postgresql/pg_hba.conf'
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=db
+    ports:
+      - 15432:5432
+    volumes:
+      - ./primary/data:/var/lib/postgresql/data
+      - ./primary/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./primary/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./primary/init.sh:/docker-entrypoint-initdb.d/init.sh
+    healthcheck:
+      test: pg_isready -d db
+      interval: 1s
+      timeout: 1s
+      retries: 5
+
+  replica:
+    image: postgres:13.5
+    restart: always
+    entrypoint: /entrypoint.sh
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=db
+    ports:
+      - 25432:5432
+    volumes:
+      - ./replica/data:/var/lib/postgresql/data
+      - ./replica/entrypoint.sh:/entrypoint.sh
+      - ./replica/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./replica/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    healthcheck:
+      test: pg_isready -d db
+      interval: 1s
+      timeout: 1s
+      retries: 5
+    depends_on:
+      primary:
+        condition: service_healthy
